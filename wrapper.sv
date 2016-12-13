@@ -27,9 +27,11 @@ logic [63:0] cycle_counter;
 
 
 
+integer now;
 initial begin
 	debug_file = $fopen("C:/Users/haris/Desktop/Verilog/bridge_rtl/debug_file.txt", "w") ;
 	cycle_counter=0;
+	now=0;
 end
 
 
@@ -202,7 +204,6 @@ logic                                    axi_r_ready;   // RREADY
 ///////++++++++++++++++++++++
 ////// Dummy slave
 ///////++++++++++++++++++++++
-integer now;
 always_ff @(posedge HCLK or negedge HRESETn) begin
 	if(~HRESETn) begin
 		axi_aw_ready<=0;
@@ -217,18 +218,22 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		 if(axi_w_valid==1'b1) begin
 		 	axi_w_ready<=1'b1;
 		 	now<=cycle_counter;
+		 	$display("axi_w_valid=%b",axi_w_valid);
+		 	$display("now=%0d",now);
 		 end else begin 
 		 	axi_w_ready<=0;
 		 end
 		 axi_b_resp<=0;
-		 if(cycle_counter==now+3) begin
+		 if(cycle_counter==now+3 && cycle_counter>3) begin
 		 	axi_b_valid<=1'b1;
 		 end else begin 
 		 	axi_b_valid<=0;
 		 end
 	end
 end
-
+///////++++++++++++++++++++++
+////// END - Dummy slave
+///////++++++++++++++++++++++
 
 // parameter int SERVE_RATE    = 100; // Rate at which Slave generates responses
 // parameter int ERROR_RATE    = 0;  

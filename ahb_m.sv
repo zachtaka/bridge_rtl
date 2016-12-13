@@ -120,6 +120,7 @@ initial begin
 	// INCR_t(4,'h1,4,0);
 	IDLE_t;
 	SINGLE_t(8,4,1);
+	//INCR_t(5,'h8,4,1);
 	IDLE_t;
 end
 // clock generator
