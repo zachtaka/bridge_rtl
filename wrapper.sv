@@ -47,6 +47,10 @@ always @(posedge (HTRANS==2'b00) ) begin
 	// $fwrite(debug_file,"\n");
 end
 
+logic fake_HREADY;
+always_comb begin : proc_
+	fake_HREADY=1'b1;
+end
 
 
 		ahb_m #(
@@ -218,8 +222,6 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		 if(axi_w_valid==1'b1) begin
 		 	axi_w_ready<=1'b1;
 		 	now<=cycle_counter;
-		 	$display("axi_w_valid=%b",axi_w_valid);
-		 	$display("now=%0d",now);
 		 end else begin 
 		 	axi_w_ready<=0;
 		 end

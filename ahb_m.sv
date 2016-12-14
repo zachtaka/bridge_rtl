@@ -119,14 +119,23 @@ initial begin
 	// INCR_t(4,'h0,4,write_random_var);
 	// INCR_t(4,'h1,4,0);
 	IDLE_t;
+	
 	SINGLE_t(8,4,1);
-	//INCR_t(5,'h8,4,1);
+	
+	while (HREADY==1'b1)begin 
+		IDLE_t;
+	end
+	INCR_t(4,'h8,4,1);
+	
+	
 	IDLE_t;
 end
 // clock generator
 always #(Hclock/2) HCLK= ~HCLK;
 
-always @(posedge HCLK) begin
+
+
+always_ff @(posedge HCLK) begin
 	cycle_counter<=cycle_counter+1;
 	if (HWRITE==1) begin
 		if (state==BUSY) begin
@@ -148,8 +157,8 @@ always @(posedge HCLK) begin
 	//$fwrite(file,"@cycle_counter=%0d \tHTRANS=%s \tHADDR=%h \tHWRITE=%h \tHBURST=%s \tHSIZE=%s \tHWDATA=%h data=%h\tHREADY=%b \t@local_cycle_counter=%0d put_write_data=%b\n",cycle_counter,state,HADDR,HWRITE,burst_type,size,HWDATA,data,HREADY,local_cycle_counter,put_write_data);
 	$fwrite(file,"@cycle_counter=%0d \tHTRANS=%s \tHTRANS=%b \tHBURST=%s \tHSIZE=%s \tburst_length=%0d \tHWRITE=%h \tHADDR=%h \tHWDATA=%h \tHRDATA=%h \tHREADY=%b \tHRESP=%s \tdata=%h \tdata_buffer=%h \t@local_cycle_counter=%0d \n",cycle_counter,state,HTRANS,burst_type,size,burst_length,HWRITE,HADDR,HWDATA,HRDATA,HREADY,response,data,data_buffer,local_cycle_counter);
 
-
 end
+
 
 always @(posedge (HTRANS==2'b00) ) begin
 	$fwrite(file,"\n");
@@ -161,127 +170,85 @@ end
 
 
 
-task INCR_t;
-input integer number_of_beats;
-input [AHB_ADDRESS_WIDTH-1:0] start_address;
-input integer size_in_bytes;
-input write_random_var;
-reg [7:0] tmp0;
-reg  [AHB_ADDRESS_WIDTH-1:0] aligned_address,next_address;
-assign number_bytes = size_in_bytes;
-assign aligned_address = (start_address/number_bytes)*number_bytes;
+task INCR_t(
+	input int number_of_beats,
+	input [AHB_ADDRESS_WIDTH-1:0] start_address,
+	input int size_in_bytes,
+	input write_random_var
+	);
+
+logic [7:0] tmp0;
+logic  [AHB_ADDRESS_WIDTH-1:0] aligned_address,next_address;
+logic incr_ack;
+assign next_address=new_address(size_in_bytes,aligned_address,local_cycle_counter);
 //INCR
-	
-	local_cycle_counter=0;
+	assign number_bytes = size_in_bytes;
+	assign aligned_address = (start_address/number_bytes)*number_bytes;
 	tmp0=0;
-	
-	while (local_cycle_counter<number_of_beats-1) begin
-		@(posedge HCLK) begin
-			burst_length<=number_of_beats;
-			///////////////////////////
-			/// Address phase
-			///////////////////////////
-			// Set burst type
-			if (number_of_beats==0) begin
-				burst_type<=INCR;
-			end else if (number_of_beats==4) begin
-				burst_type<=INCR4;
-			end else if(number_of_beats==8) begin
-				burst_type<=INCR8;
-			end else if (number_of_beats==16) begin
-				burst_type<=INCR16;
-			end else begin
-				burst_type<=INCR;
-			end
-
-			// Set size
-			if (size_in_bytes==1) begin
-				size<=Byte;
-			end else if (size_in_bytes==2) begin
-				size<=Halfword;
-			end else if(size_in_bytes==4) begin
-				size<=Word;
-			end else if (size_in_bytes==8) begin
-				size<=Doubleword;
-			end
-			if (state==BUSY) begin
-				if ($urandom_range(0,100)>10) begin
-					state<=SEQ;
-				end else begin
-					state<=BUSY;
-				end
-			end else if (HREADY==1'b1) begin
-				if (local_cycle_counter==0) begin
-					state<=NONSEQ;
-				end else begin
-					if (local_cycle_counter<number_of_beats-2 && $urandom_range(0,100)<10) begin // na min mporei an emfanisei busy ston teleutaio kyklo gt tote paei stin epomeni entoli apo ton counter, kai etsi dn ginetai to teleutaio transfer tou burst
-						state<=BUSY;
+	local_cycle_counter=0;
+	incr_ack=0;
+	assign incr_ack=(local_cycle_counter==number_of_beats)&&(HREADY==1'b1);
+	while (incr_ack==0)begin
+		@(posedge HCLK)begin
+			if(HREADY==1'b1) begin
+				
+				if(local_cycle_counter==0) begin
+					burst_length<=number_of_beats;
+					// Set burst type
+					if (number_of_beats==0) begin
+						burst_type<=INCR;
+					end else if (number_of_beats==4) begin
+						burst_type<=INCR4;
+					end else if(number_of_beats==8) begin
+						burst_type<=INCR8;
+					end else if (number_of_beats==16) begin
+						burst_type<=INCR16;
 					end else begin
-						state<=SEQ;
+						burst_type<=INCR;
 					end
-				end 
-				//size<=Halfword;
-
-				HWRITE<=write_random_var;
-				if (local_cycle_counter>0) begin
-					next_address = aligned_address+(local_cycle_counter)*number_bytes;
-					HADDR<=next_address; 
-				end else begin
+					// Set size
+					if (size_in_bytes==1) begin
+						size<=Byte;
+					end else if (size_in_bytes==2) begin
+						size<=Halfword;
+					end else if(size_in_bytes==4) begin
+						size<=Word;
+					end else if (size_in_bytes==8) begin
+						size<=Doubleword;
+					end
+					// Set state
+					state<=NONSEQ;
+					// Set HWRITE
+					HWRITE<=write_random_var;
 					HADDR<=start_address;
+				end else if (local_cycle_counter<number_of_beats) begin
+					// state changes
+					state<=SEQ;
+					// address changes
+					HADDR<=new_address(size_in_bytes,aligned_address,local_cycle_counter);
 				end
 
-				
-				local_cycle_counter<=local_cycle_counter+1;
-
-
-				if (local_cycle_counter==number_of_beats-1) begin
-					local_cycle_counter<=0;
-				end
-				
-
-				
-				// if (local_cycle_counter==0) begin //if first transfer
-				// 	lower_byte_lane = (start_address-(start_address/data_bus_bytes)*data_bus_bytes);
-				// 	upper_byte_lane = ( aligned_address+(number_bytes-1)-(start_address/data_bus_bytes)*data_bus_bytes);
-				// end else begin
-				// 	lower_byte_lane=next_address-(next_address/data_bus_bytes)*data_bus_bytes;
-				// 	upper_byte_lane=lower_byte_lane+number_bytes-1;
-				// end
-				// $display("@cycle_counter=%0d",cycle_counter);
-				// $display("local_cycle_counter=%0d",local_cycle_counter);
-				// $display("lower_byte_lane=%0d",lower_byte_lane);
-				// $display("upper_byte_lane=%0d",upper_byte_lane);
-				// $display("\n");
 
 				// Set data on data bus
 				data_buffer<=data;
 				for (int i=0;i<AHB_DATA_WIDTH;i=i+8)begin
-					if (local_cycle_counter==0) begin //if first transfer
-						lower_byte_lane = (start_address-(start_address/data_bus_bytes)*data_bus_bytes);
-						upper_byte_lane = ( aligned_address+(number_bytes-1)-(start_address/data_bus_bytes)*data_bus_bytes);
-						if ((i>=lower_byte_lane*8) && (i<=upper_byte_lane*8)) begin //if i >= lower_byte_lane && i<=upper_byte_lane //((i>=start_address-(start_address/(AHB_DATA_WIDTH/8))*(AHB_DATA_WIDTH/8)) && ( i<=(start_address - start_address%(AHB_DATA_WIDTH/8) + (2**HSIZE-1) - (start_address/(AHB_DATA_WIDTH/8))*(AHB_DATA_WIDTH/8) ) ) )
-							data[i+:8]<=tmp0;
-						end else begin
-							data[i+:8]<='bx;
-						end
+					lower_byte_lane = lower_bytelane(start_address,data_bus_bytes,local_cycle_counter,next_address);
+					upper_byte_lane = upper_bytelane(aligned_address,number_bytes, start_address,data_bus_bytes,lower_byte_lane,local_cycle_counter);
+					$display("@cycle_counter=%0d lower_byte_lane=%0d upper_byte_lane=%0d",cycle_counter,lower_byte_lane,upper_byte_lane);
+					if ((i>=lower_byte_lane*8) && (i<=upper_byte_lane*8)) begin
+						data[i+:8]<=tmp0;
 					end else begin
-						lower_byte_lane=next_address-(next_address/data_bus_bytes)*data_bus_bytes;
-						upper_byte_lane=lower_byte_lane+number_bytes-1;
-						if ((i>=lower_byte_lane*8) && (i<=upper_byte_lane*8)) begin
-							data[i+:8]<=tmp0;
-						end else begin
-							data[i+:8]<='bx;
-						end
-						
-						
+						data[i+:8]<='bx;
 					end
 					tmp0=tmp0+1;
 				end	
 				
-				
+				local_cycle_counter<=local_cycle_counter+1;
 				
 			end
 		end
+		$display("cycle_counter=%0d",cycle_counter);
+		$display("incr_ack=%b",incr_ack);
 	end
 endtask
 

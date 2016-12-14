@@ -121,16 +121,13 @@ assign response = response_t'(HRESP);
 assign axi_w_ack = axi_w_valid_o & axi_w_ready_i;
 assign axi_aw_ack = axi_aw_valid_o & axi_aw_ready_i;
 
-
-
-
 // HREADY
 logic axi_write_ack;
 always_ff @(posedge HCLK or negedge HRESETn) begin 
 	if(~HRESETn) begin
 		 HREADY<=1'b1;
 	end else begin
-		if(state == NONSEQ) begin
+		if( (state == NONSEQ || state==SEQ) && HREADY==1'b1) begin
 			HREADY<=0;
 		end 
 		if(axi_write_ack==1'b1) begin
@@ -153,6 +150,9 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		end
 	end
 end
+
+
+
 
 // axi write ack and axi_b_ready_o
 always_comb begin 
@@ -177,7 +177,9 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 	end else begin
 		if( HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1 ) begin //geniki sinthiki pou kanw sample ta AW simata
 			if(burst_type==SINGLE ) begin
-				axi_aw_burst_o<=2'b01;
+				axi_aw_burst_o<=2'b01; // axi_burst=INCR
+			end if(burst_type==INCR) begin
+				axi_aw_burst_o<=2'b01; // axi_burst=INCR
 			end else begin 
 				axi_aw_burst_o<=0;
 			end
@@ -196,6 +198,8 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1) begin
 			if(burst_type==SINGLE ) begin
 				axi_aw_size_o<=HSIZE;
+			end else if(burst_type==INCR) begin
+				axi_aw_size_o<=HSIZE;
 			end
 			if (axi_write_ack==1'b1) begin 
 				axi_aw_size_o<=0;
@@ -213,6 +217,8 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1) begin
 			if(burst_type==SINGLE) begin
 				axi_aw_len_o<=0;
+			end if(burst_type==INCR) begin
+				axi_aw_len_o<=0;
 			end else begin 
 				axi_aw_len_o<=0;
 			end
@@ -229,6 +235,9 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 	end else begin
 		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1) begin
 			if(burst_type==SINGLE) begin
+				axi_aw_addr_o<=HADDR;
+				axi_aw_valid_o<= 1'b1;
+			end else if(burst_type==INCR) begin
 				axi_aw_addr_o<=HADDR;
 				axi_aw_valid_o<= 1'b1;
 			end
