@@ -120,12 +120,12 @@ initial begin
 	// INCR_t(4,'h1,4,0);
 	IDLE_t;
 	
-	SINGLE_t(8,4,1);
+	// SINGLE_t(8,4,1);
 	
-	while (HREADY==1'b1)begin 
-		IDLE_t;
-	end
-	INCR_t(4,'h8,4,1);
+	// while (HREADY==1'b1)begin 
+	// 	IDLE_t;
+	// end
+	INCR_t(4,'h0,4,1);
 	
 	
 	IDLE_t;
@@ -267,10 +267,12 @@ task IDLE_t;
 
 endtask
 
-task SINGLE_t;
-input [AHB_ADDRESS_WIDTH-1:0] start_address;
-input integer size_in_bytes;
-input write_random_var;
+task SINGLE_t(
+	input [AHB_ADDRESS_WIDTH-1:0] start_address,
+	input integer size_in_bytes,
+	input write_random_var
+	);
+
 reg  [AHB_ADDRESS_WIDTH-1:0] aligned_address;
 assign number_bytes = size_in_bytes;
 assign aligned_address = (start_address/number_bytes)*number_bytes;

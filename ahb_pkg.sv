@@ -57,7 +57,7 @@ function int lower_bytelane(
 		logic[AHB_ADDRESS_WIDTH-1:0] next_address
 		);
    	
-   	if (local_cycle_counter==1) begin
+   	if (local_cycle_counter==0) begin
    		lower_bytelane = (start_address-(start_address/data_bus_bytes)*data_bus_bytes);
    	end else begin 
    		lower_bytelane=next_address-(next_address/data_bus_bytes)*data_bus_bytes;
@@ -75,7 +75,7 @@ function int upper_bytelane(
 		int local_cycle_counter
 		);
    	
-   	if (local_cycle_counter==1) begin
+   	if (local_cycle_counter==0) begin
    		upper_bytelane = ( aligned_address+(number_bytes-1)-(start_address/data_bus_bytes)*data_bus_bytes);
    	end else begin 
    		upper_bytelane=lower_byte_lane+number_bytes-1;;
@@ -83,6 +83,77 @@ function int upper_bytelane(
    
 endfunction
 
+class ahb_transaction ;
+	logic [AHB_ADDRESS_WIDTH-1:0] address;
+	logic [AHB_DATA_WIDTH-1:0] write_data;
+	logic write;
+	logic [2:0] size;
+	logic [2:0] burst;
+	logic [1:0] trans;
 
+function new(logic[AHB_ADDRESS_WIDTH-1:0] address_,logic [AHB_DATA_WIDTH-1:0] write_data_,logic write_,logic [2:0] size_,logic [2:0] burst_,logic [1:0] trans_);
+        address     = address_;
+        write_data = write_data_;
+        write = write_;
+        size  = size_;
+        burst = burst_;
+        trans = trans_;
+endfunction
+
+endclass : ahb_transaction
+
+function string trans_to_string (
+	logic [1:0] HTRANS
+	);
+	if(HTRANS==2'b00) begin
+		trans_to_string= "IDLE";
+	end else if(HTRANS==2'b01) begin
+		trans_to_string="BUSY";
+	end else if(HTRANS==2'b10) begin
+		trans_to_string="NONSEQ";
+	end else if(HTRANS==2'b11) begin
+		trans_to_string="SEQ";
+	end
+endfunction
+
+function string burst_to_string (
+	logic [2:0] HBURST
+	);
+	if(HBURST==3'b000) begin
+		burst_to_string= "SINGLE";
+	end else if(HBURST==3'b001) begin
+		burst_to_string="INCR";
+	end else if(HBURST==3'b010) begin
+		burst_to_string="WRAP4";
+	end else if(HBURST==3'b011) begin
+		burst_to_string="INCR4";
+	end else if(HBURST==3'b100) begin
+		burst_to_string="WRAP8";
+	end else if(HBURST==3'b101) begin
+		burst_to_string="INCR8";
+	end else if(HBURST==3'b110) begin
+		burst_to_string="WRAP16";
+	end else if(HBURST==3'b111) begin
+		burst_to_string="INCR16";
+	end
+endfunction
+
+function string size_to_string (
+	logic [2:0] HSIZE
+	);
+	if(HSIZE==3'b000) begin
+		size_to_string= "Byte";
+	end else if(HSIZE==3'b001) begin
+		size_to_string="Halfword";
+	end else if(HSIZE==3'b010) begin
+		size_to_string="Word";
+	end else if(HSIZE==3'b011) begin
+		size_to_string="Doubleword";
+	end else if(HSIZE==3'b100) begin
+		size_to_string="4-wordline";
+	end else if(HSIZE==3'b101) begin
+		size_to_string="8-wordline";
+	end
+endfunction
 
 endpackage : ahb_pkg

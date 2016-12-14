@@ -53,26 +53,45 @@ always_comb begin : proc_
 end
 
 
-		ahb_m #(
+		// ahb_m #(
+		// 	.AHB_DATA_WIDTH(AHB_DATA_WIDTH),
+		// 	.AHB_ADDRESS_WIDTH(AHB_ADDRESS_WIDTH),
+		// 	.Hclock(Hclock),
+		// 	.GEN_RATE(GEN_RATE),
+		// 	.max_undefined_length(max_undefined_length)
+		// ) inst_ahb_m (
+		// 	.HCLK    (HCLK),
+		// 	.HRESETn (HRESETn),
+		// 	.HADDR   (HADDR),
+		// 	.HWDATA  (HWDATA),
+		// 	.HRDATA  (HRDATA),
+		// 	.HWRITE  (HWRITE),
+		// 	.HSIZE   (HSIZE),
+		// 	.HBURST  (HBURST),
+		// 	.HTRANS  (HTRANS),
+		// 	.HREADY  (fake_HREADY),
+		// 	.HRESP   (HRESP)
+		// );
+
+	ahb_m_v2 #(
 			.AHB_DATA_WIDTH(AHB_DATA_WIDTH),
 			.AHB_ADDRESS_WIDTH(AHB_ADDRESS_WIDTH),
 			.Hclock(Hclock),
 			.GEN_RATE(GEN_RATE),
 			.max_undefined_length(max_undefined_length)
-		) inst_ahb_m (
+		) inst_ahb_m_v2 (
 			.HCLK    (HCLK),
-			.HRESETn (HRESETn),
+			.HREADY  (HREADY),
+			.HRESP   (HRESP),
+			.HRDATA  (HRDATA),
 			.HADDR   (HADDR),
 			.HWDATA  (HWDATA),
-			.HRDATA  (HRDATA),
 			.HWRITE  (HWRITE),
 			.HSIZE   (HSIZE),
 			.HBURST  (HBURST),
 			.HTRANS  (HTRANS),
-			.HREADY  (HREADY),
-			.HRESP   (HRESP)
+			.HRESETn (HRESETn)
 		);
-
 
 
 
