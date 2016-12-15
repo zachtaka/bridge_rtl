@@ -156,4 +156,19 @@ function string size_to_string (
 	end
 endfunction
 
+function logic[(AHB_DATA_WIDTH/8)-1:0] w_strobes (
+	logic[AHB_ADDRESS_WIDTH-1:0] axi_aw_addr_o,
+	logic[2:0] axi_aw_size_o
+	);
+	for (int i = 0; i < (AHB_DATA_WIDTH/8); i++) begin
+		if(i>=axi_aw_addr_o%(AHB_DATA_WIDTH/8) && i<=axi_aw_addr_o%(AHB_DATA_WIDTH/8)+2**axi_aw_size_o-1) begin
+			w_strobes[i] = 1'b1;
+		end else begin 
+			w_strobes[i] = 0;
+		end
+	end
+	$display("w_strobes =%b",w_strobes);
+
+endfunction
+
 endpackage : ahb_pkg

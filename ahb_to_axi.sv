@@ -178,7 +178,7 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		if( HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1 ) begin //geniki sinthiki pou kanw sample ta AW simata
 			if(burst_type==SINGLE ) begin
 				axi_aw_burst_o<=2'b01; // axi_burst=INCR
-			end if(burst_type==INCR) begin
+			end if(burst_type==INCR || burst_type==INCR4 ||burst_type==INCR8 || burst_type==INCR16 ) begin
 				axi_aw_burst_o<=2'b01; // axi_burst=INCR
 			end else begin 
 				axi_aw_burst_o<=0;
@@ -198,7 +198,7 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1) begin
 			if(burst_type==SINGLE ) begin
 				axi_aw_size_o<=HSIZE;
-			end else if(burst_type==INCR) begin
+			end else begin // if(burst_type==INCR)
 				axi_aw_size_o<=HSIZE;
 			end
 			if (axi_write_ack==1'b1) begin 
@@ -217,11 +217,9 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1) begin
 			if(burst_type==SINGLE) begin
 				axi_aw_len_o<=0;
-			end if(burst_type==INCR) begin
+			end else begin // if(burst_type==INCR)
 				axi_aw_len_o<=0;
-			end else begin 
-				axi_aw_len_o<=0;
-			end
+			end 
 		end
 	end
 end
@@ -237,7 +235,7 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 			if(burst_type==SINGLE) begin
 				axi_aw_addr_o<=HADDR;
 				axi_aw_valid_o<= 1'b1;
-			end else if(burst_type==INCR) begin
+			end else begin // if(burst_type==INCR)
 				axi_aw_addr_o<=HADDR;
 				axi_aw_valid_o<= 1'b1;
 			end
@@ -275,7 +273,7 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 			axi_w_data_o<=HWDATA;
 			axi_w_valid_o<= 1'b1;
 			axi_w_last_o<= 1'b1; //epeidi pros to paron ola ta kanw single, auto einai swsto
-			axi_w_strb_o<='1;  // na to ftiaksw properly se function
+			axi_w_strb_o<=w_strobes(axi_aw_addr_o,axi_aw_size_o);  // na to ftiaksw properly se function
 		end 
 		if(axi_w_ack==1'b1) begin
 			axi_w_data_o <= 'bx;
@@ -304,18 +302,21 @@ integer cycle_counter;
 integer ahb2axi_file;
 initial begin 
 	ahb2axi_file = $fopen("C:/Users/haris/Desktop/Verilog/bridge_rtl/ahb2axi_file.txt", "w") ;
-	cycle_counter=0;
 end
 
-always_ff @(posedge HCLK) begin 
-	cycle_counter <= cycle_counter + 1;
-	// $fwrite(ahb2axi_file,"cycle_counter=%0d \tHADDR=%h \tHWDATA=%h \tHWRITE=%b \tHSIZE=%s \tHBURST=%s \tHTRANS=%s \n",cycle_counter,HADDR,HWDATA,HWRITE,size,burst_type,state);
-	// $fwrite(ahb2axi_file,"\t\tWADDR=%h \tAWVALID=%b \tAWLEN=%0d \tAWSIZE=%b \tWDATA=%h \tWVALID=%b \tAWBURST=%b  \n\n",axi_aw_addr_o,axi_aw_valid_o, axi_aw_len_o,axi_aw_size_o,axi_w_data_o,axi_w_valid_o,axi_aw_burst_o);
+always_ff @(posedge HCLK or negedge HRESETn) begin 
+	if(~HRESETn) begin
+		cycle_counter <= 0;
+	end else begin
+		cycle_counter <= cycle_counter + 1;
+		// $fwrite(ahb2axi_file,"cycle_counter=%0d \tHADDR=%h \tHWDATA=%h \tHWRITE=%b \tHSIZE=%s \tHBURST=%s \tHTRANS=%s \n",cycle_counter,HADDR,HWDATA,HWRITE,size,burst_type,state);
+		// $fwrite(ahb2axi_file,"\t\tWADDR=%h \tAWVALID=%b \tAWLEN=%0d \tAWSIZE=%b \tWDATA=%h \tWVALID=%b \tAWBURST=%b  \n\n",axi_aw_addr_o,axi_aw_valid_o, axi_aw_len_o,axi_aw_size_o,axi_w_data_o,axi_w_valid_o,axi_aw_burst_o);
 
-	$fwrite(ahb2axi_file,"cycle_counter=%0d\n",cycle_counter);
-	$fwrite(ahb2axi_file,"\tHRESETn=%b\n \tHBURST=%0d\n \tHSIZE=%0d\n \tHTRANS=%0d\n \tHADDR=%h\n \tHREADY=%b\n \tHWRITE=%b\n \tHWDATA=%h\n \tHRESP=%h\n \taxi_aw_burst_o=%0d\n \taxi_aw_size_o=%0d\n \taxi_aw_len_o=%0d\n \taxi_aw_addr_o=%h\n \taxi_aw_valid_o=%b\n \taxi_aw_ready_i=%b\n \taxi_aw_ack=%b\n \taxi_w_data_o=%h\n \taxi_w_valid_o=%b\n \taxi_w_ready_i=%b\n \taxi_w_strb_o=%h\n \taxi_w_last_o=%b\n \taxi_b_ready_o=%b\n \taxi_b_valid_i=%b\n \taxi_b_resp_i=%b\n \tpending_write=%b\n",
-				    HRESETn,HBURST,HSIZE,HTRANS,HADDR,HREADY,HWRITE,HWDATA,HRESP,axi_aw_burst_o,axi_aw_size_o,axi_aw_len_o,axi_aw_addr_o,axi_aw_valid_o,axi_aw_ready_i,axi_aw_ack,axi_w_data_o,axi_w_valid_o,axi_w_ready_i,axi_w_strb_o,axi_w_last_o,axi_b_ready_o,axi_b_valid_i,axi_b_resp_i,pending_write);
-	$fwrite(ahb2axi_file,"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+		$fwrite(ahb2axi_file,"cycle_counter=%0d\n",cycle_counter);
+		$fwrite(ahb2axi_file,"\tHRESETn=%b\n \tHBURST=%s\n \tHSIZE=%s\n \tHTRANS=%s\n \tHADDR=%h\n \tHREADY=%b\n \tHWRITE=%b\n \tHWDATA=%h\n \tHRESP=%h\n \taxi_aw_burst_o=%0d\n \taxi_aw_size_o=%0d\n \taxi_aw_len_o=%0d\n \taxi_aw_addr_o=%h\n \taxi_aw_valid_o=%b\n \taxi_aw_ready_i=%b\n \taxi_aw_ack=%b\n \taxi_w_data_o=%h\n \taxi_w_valid_o=%b\n \taxi_w_ready_i=%b\n \taxi_w_strb_o=%b\n \taxi_w_last_o=%b\n \taxi_b_ready_o=%b\n \taxi_b_valid_i=%b\n \taxi_b_resp_i=%b\n \tpending_write=%b\n",
+					    HRESETn,burst_to_string(HBURST),size_to_string(HSIZE),trans_to_string(HTRANS),HADDR,HREADY,HWRITE,HWDATA,HRESP,axi_aw_burst_o,axi_aw_size_o,axi_aw_len_o,axi_aw_addr_o,axi_aw_valid_o,axi_aw_ready_i,axi_aw_ack,axi_w_data_o,axi_w_valid_o,axi_w_ready_i,axi_w_strb_o,axi_w_last_o,axi_b_ready_o,axi_b_valid_i,axi_b_resp_i,pending_write);
+		$fwrite(ahb2axi_file,"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
+	end
 end
 
 

@@ -74,7 +74,6 @@ initial begin
 	HRESETn=1'b1;
 
 
-
 	INCR_t(4,'h0,4,1);
 	INCR_t(4,'h0,4,1);
 	SINGLE_t(8,4,1);
