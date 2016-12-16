@@ -226,7 +226,7 @@ logic                                    axi_r_ready;   // RREADY
 
 ///////++++++++++++++++++++++
 ////// Dummy slave
-///////++++++++++++++++++++++
+// ///////++++++++++++++++++++++
 // always_ff @(posedge HCLK or negedge HRESETn) begin
 // 	if(~HRESETn) begin
 // 		axi_aw_ready<=0;

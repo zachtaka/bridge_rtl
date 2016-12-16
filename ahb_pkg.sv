@@ -157,11 +157,11 @@ function string size_to_string (
 endfunction
 
 function logic[(AHB_DATA_WIDTH/8)-1:0] w_strobes (
-	logic[AHB_ADDRESS_WIDTH-1:0] axi_aw_addr_o,
+	logic[AHB_ADDRESS_WIDTH-1:0] address_buffer,
 	logic[2:0] axi_aw_size_o
 	);
 	for (int i = 0; i < (AHB_DATA_WIDTH/8); i++) begin
-		if(i>=axi_aw_addr_o%(AHB_DATA_WIDTH/8) && i<=axi_aw_addr_o%(AHB_DATA_WIDTH/8)+2**axi_aw_size_o-1) begin
+		if(i>=address_buffer%(AHB_DATA_WIDTH/8) && i<=address_buffer%(AHB_DATA_WIDTH/8)+2**axi_aw_size_o-1) begin
 			w_strobes[i] = 1'b1;
 		end else begin 
 			w_strobes[i] = 0;
@@ -170,5 +170,43 @@ function logic[(AHB_DATA_WIDTH/8)-1:0] w_strobes (
 	$display("w_strobes =%b",w_strobes);
 
 endfunction
+
+function string axi_burst_to_string (
+	logic [1:0] axi_aw_burst_o
+	);
+	if(axi_aw_burst_o==2'b00) begin
+		axi_burst_to_string= "FIXED";
+	end else if(axi_aw_burst_o==2'b01) begin
+		axi_burst_to_string="INCR";
+	end else if(axi_aw_burst_o==2'b10) begin
+		axi_burst_to_string="WRAP";
+	end else if(axi_aw_burst_o==2'b11) begin
+		axi_burst_to_string="RESERVEDS";
+	end
+endfunction
+
+function string axi_size_to_string (
+	logic [2:0] axi_aw_size_o
+	);
+	if(axi_aw_size_o==3'b000) begin
+		axi_size_to_string= "1 byte";
+	end else if(axi_aw_size_o==3'b001) begin
+		axi_size_to_string="2 bytes";
+	end else if(axi_aw_size_o==3'b010) begin
+		axi_size_to_string="4 bytes";
+	end else if(axi_aw_size_o==3'b011) begin
+		axi_size_to_string="8 bytes";
+	end else if(axi_aw_size_o==3'b100) begin
+		axi_size_to_string="16 bytes";
+	end else if(axi_aw_size_o==3'b101) begin
+		axi_size_to_string="32 bytes";
+	end else if(axi_aw_size_o==3'b110) begin
+		axi_size_to_string="64 bytes";
+	end else if(axi_aw_size_o==3'b111) begin
+		axi_size_to_string="128 bytes";
+	end
+endfunction
+
+
 
 endpackage : ahb_pkg

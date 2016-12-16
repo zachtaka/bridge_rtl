@@ -26,9 +26,9 @@ module ahb_m_v2
 integer data_bus_bytes;
 assign data_bus_bytes = AHB_DATA_WIDTH/8;
 int local_cycle_counter;
-logic [63:0] number_bytes,upper_byte_lane,lower_byte_lane;
+logic [63:0] number_bytes,number_bytes2,upper_byte_lane,lower_byte_lane;
 logic [AHB_DATA_WIDTH-1:0]data,data_buffer;
-logic  [AHB_ADDRESS_WIDTH-1:0] aligned_address,next_address;
+logic  [AHB_ADDRESS_WIDTH-1:0] aligned_address,aligned_address2,next_address;
 // state encoding
 state_t state;
 // assign HTRANS  = state_t'(state);
@@ -78,9 +78,9 @@ initial begin
 	z=0;
 
 	// INCR_t(4,'h0,4,1);
-	// INCR_t(4,'h0,4,1);
-	// SINGLE_t(8,4,1);
-	// IDLE_t;
+	// INCR_t(4,'h4,8,1);
+	// SINGLE_t(4,1,1);
+	IDLE_t;
 	while ( z<1000) begin
 		gen_random_var = $urandom_range(0,99);
 		trans_random_var = $urandom_range(0,4);
@@ -110,7 +110,7 @@ initial begin
 		end
 		z++;
 	end
-
+	IDLE_t;
 
 
 
@@ -174,15 +174,18 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		tmp0<=0;
 		HWDATA<=0;
 	end else begin
-		if(HREADY==1'b1 && (state_!==2'b00 && state_!==2'b01)  && HWRITE==1'b1) begin
+
+		// $display("@cycle_counter=%0d HREADY=%b state_=%b HWRITE=%b",cycle_counter,HREADY,state_,HWRITE);
+		if(HREADY==1'b1 && (HTRANS!==2'b00 && HTRANS!==2'b01)  && HWRITE==1'b1) begin
 			data_phase<=1'b1;
 			wdata_mail.get(data);
 			HWDATA<=data;
-		end else begin 
-			data_phase<=0;
-			tmp0<=0;
-			HWDATA<=0;
-		end
+		end 
+		// else begin 
+		// 	data_phase<=0;
+		// 	tmp0<=0;
+		// 	HWDATA<=0;
+		// end
 	end
 end
 
@@ -297,7 +300,7 @@ task INCR_t(
 			if ((k>=lower_byte_lane*8) && (k<=upper_byte_lane*8)) begin
 				data[k+:8]=tmp0;
 			end else begin
-				data[k+:8]='bx;
+				data[k+:8]=0;
 			end
 			tmp0=tmp0+1;
 		end	
@@ -314,16 +317,21 @@ task SINGLE_t(			// %f merge with incr
 	input integer size_in_bytes,
 	input write_random_var
 	);
-
+	assign number_bytes2 = size_in_bytes;
+	assign aligned_address2 = (start_address/number_bytes2)*number_bytes2;
 	// Set size
 	if (size_in_bytes==1) begin
 		size=Byte;
+		size_=3'b000;
 	end else if (size_in_bytes==2) begin
 		size=Halfword;
+		size_=3'b001;
 	end else if(size_in_bytes==4) begin
 		size=Word;
+		size_=3'b010;
 	end else if (size_in_bytes==8) begin
 		size=Doubleword;
+		size_=3'b011;
 	end
 	state_=2'b10; // NONSEQ
 	address = start_address;
@@ -335,12 +343,12 @@ task SINGLE_t(			// %f merge with incr
 	for (int k=0;k<AHB_DATA_WIDTH;k=k+8)begin
 
 		lower_byte_lane = (start_address-(start_address/data_bus_bytes)*data_bus_bytes);
-		upper_byte_lane = ( aligned_address+(number_bytes-1)-(start_address/data_bus_bytes)*data_bus_bytes);
+		upper_byte_lane = ( aligned_address2+(number_bytes2-1)-(start_address/data_bus_bytes)*data_bus_bytes);
 			
 		if ((k>=lower_byte_lane*8) && (k<=upper_byte_lane*8)) begin
 			data[k+:8]=tmp0;
 		end else begin
-			data[k+:8]='bx;
+			data[k+:8]=0;
 		end
 		tmp0=tmp0+1;
 	end	
@@ -361,7 +369,6 @@ task IDLE_t;
 	burst = 3'b000; // SINGLE
 	size_=3'b000;
 	burst_length=0;
-
 	put_to_mail;
 
 
@@ -379,7 +386,6 @@ task put_to_mail();
 	write_mail.put(write);
 	undef_incr_len_mail.put(burst_length);
 endtask : put_to_mail
-
 
 task pop_from_mail();
 	burst_mail.get(burst);

@@ -116,10 +116,16 @@ assign response = response_t'(HRESP);
 ///////++++++++++++++++++++++
 ////// Write Transfers (SINGLE)
 ///////++++++++++++++++++++++
-
-
-assign axi_w_ack = axi_w_valid_o & axi_w_ready_i;
-assign axi_aw_ack = axi_aw_valid_o & axi_aw_ready_i;
+logic axi_aw_ack,axi_w_ack;
+always_ff @(posedge HCLK or negedge HRESETn) begin 
+	if(~HRESETn) begin
+		axi_aw_ack <= 0;
+		axi_w_ack <= 0;
+	end else begin
+		axi_aw_ack <= axi_aw_valid_o & axi_aw_ready_i;
+		axi_w_ack <= axi_w_valid_o & axi_w_ready_i;
+	end
+end
 
 // HREADY
 logic axi_write_ack;
@@ -151,7 +157,17 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 	end
 end
 
-
+// Address buffer
+logic [AHB_ADDRESS_WIDTH-1:0] address_buffer;
+always_ff @(posedge HCLK or negedge HRESETn) begin
+	if(~HRESETn) begin
+		address_buffer <= 0;
+	end else begin
+		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1) begin
+			address_buffer <= HADDR;
+		end 
+	end
+end
 
 
 // axi write ack and axi_b_ready_o
@@ -162,96 +178,103 @@ always_comb begin
 		axi_write_ack=0;
 	end
 end
-always_ff @(posedge HCLK or negedge HRESETn) begin 
+always_comb begin 
 	if(~HRESETn) begin
-		axi_b_ready_o <= 1'b1;
+		axi_b_ready_o = 1'b1;
 	end else begin
-		axi_b_ready_o <= 1'b1;
+		axi_b_ready_o = 1'b1;
 	end
 end
 
+
 // AWBURST - HBURST
-always_ff @(posedge HCLK or negedge HRESETn) begin
+always_comb begin
 	if(~HRESETn) begin
-		axi_aw_burst_o <= 0;
+		axi_aw_burst_o = 0;
 	end else begin
 		if( HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1 ) begin //geniki sinthiki pou kanw sample ta AW simata
+
 			if(burst_type==SINGLE ) begin
-				axi_aw_burst_o<=2'b01; // axi_burst=INCR
+				axi_aw_burst_o=2'b01; // axi_burst=INCR
 			end if(burst_type==INCR || burst_type==INCR4 ||burst_type==INCR8 || burst_type==INCR16 ) begin
-				axi_aw_burst_o<=2'b01; // axi_burst=INCR
+				axi_aw_burst_o=2'b01; // axi_burst=INCR
 			end else begin 
-				axi_aw_burst_o<=0;
+				axi_aw_burst_o=2'b01;
 			end
+			$display("@cycle_counter=%0d burst_type=%b axi_aw_burst_o=%b",cycle_counter,burst_type,axi_aw_burst_o);
 		end
 	end
 end
+
 
 
 
 
  // AWSIZE - HSIZE
-always_ff @(posedge HCLK or negedge HRESETn) begin 
-	if(~HRESETn) begin
-		axi_aw_size_o<=0;
+ always_comb begin 
+ 	if(~HRESETn) begin
+		axi_aw_size_o=0;
 	end else begin
 		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1) begin
 			if(burst_type==SINGLE ) begin
-				axi_aw_size_o<=HSIZE;
+				axi_aw_size_o=HSIZE;
 			end else begin // if(burst_type==INCR)
-				axi_aw_size_o<=HSIZE;
+				axi_aw_size_o=HSIZE;
 			end
 			if (axi_write_ack==1'b1) begin 
-				axi_aw_size_o<=0;
+				axi_aw_size_o=0;
 			end
 		end
 	end
-end
+ end
+
 
 
 // AWLEN - HBURST
-always_ff @(posedge HCLK or negedge HRESETn) begin 
+always_comb begin 
 	if(~HRESETn) begin
-		axi_aw_len_o<=0;
+		axi_aw_len_o=0;
 	end else begin
 		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1) begin
 			if(burst_type==SINGLE) begin
-				axi_aw_len_o<=0;
+				axi_aw_len_o=0;
 			end else begin // if(burst_type==INCR)
-				axi_aw_len_o<=0;
+				axi_aw_len_o=0;
 			end 
 		end
 	end
 end
 
 
+
 // AWADDR / AWVALID - HADDR (katevazw to valid sto AWREADY)
-always_ff @(posedge HCLK or negedge HRESETn) begin 
+always_comb begin 
 	if(~HRESETn) begin
-		axi_aw_addr_o<=0;
-		axi_aw_valid_o<= 0;
+		axi_aw_addr_o=0;
+		axi_aw_valid_o= 0;
 	end else begin
 		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1) begin
 			if(burst_type==SINGLE) begin
-				axi_aw_addr_o<=HADDR;
-				axi_aw_valid_o<= 1'b1;
+				axi_aw_addr_o=HADDR;
+				axi_aw_valid_o= 1'b1;
 			end else begin // if(burst_type==INCR)
-				axi_aw_addr_o<=HADDR;
-				axi_aw_valid_o<= 1'b1;
+				axi_aw_addr_o=HADDR;
+				axi_aw_valid_o= 1'b1;
 			end
 		end
 		if(axi_aw_ack==1'b1) begin
-			axi_aw_addr_o<=0;
-			axi_aw_valid_o<= 0;
+			axi_aw_addr_o=0;
+			axi_aw_valid_o= 0;
 		end
 	end
 end
+
 
 // WDATA / WVALID - HWDATA   --WREADY
 logic write_data_phase;
 always_ff @(posedge HCLK or negedge HRESETn) begin
 	if(~HRESETn) begin
-		write_data_phase<=0;
+		write_data_phase=0;
 	end else begin
 		 if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1) begin
 			write_data_phase<=1'b1;
@@ -262,36 +285,38 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 end
 integer data_bus_bytes;
 assign data_bus_bytes = AHB_DATA_WIDTH / 8;
-always_ff @(posedge HCLK or negedge HRESETn) begin 
+always_comb begin
 	if(~HRESETn) begin
-		axi_w_data_o <= 'bx;
-		axi_w_valid_o<= 0;
-		axi_w_last_o<= 0;
-		axi_w_strb_o<= 0;
+		axi_w_data_o = 'bx;
+		axi_w_valid_o= 0;
+		axi_w_last_o= 0;
+		axi_w_strb_o= 0;
 	end else begin
 		if(write_data_phase==1'b1) begin
-			axi_w_data_o<=HWDATA;
-			axi_w_valid_o<= 1'b1;
-			axi_w_last_o<= 1'b1; //epeidi pros to paron ola ta kanw single, auto einai swsto
-			axi_w_strb_o<=w_strobes(axi_aw_addr_o,axi_aw_size_o);  // na to ftiaksw properly se function
+			axi_w_data_o=HWDATA;
+			axi_w_valid_o= 1'b1;
+			axi_w_last_o= 1'b1; //epeidi pros to paron ola ta kanw single, auto einai swsto
+			axi_w_strb_o=w_strobes(address_buffer,axi_aw_size_o);  // na to ftiaksw properly se function
 		end 
 		if(axi_w_ack==1'b1) begin
-			axi_w_data_o <= 'bx;
-			axi_w_valid_o<= 0;
-			axi_w_last_o<= 0;
-			axi_w_strb_o<= 0;
+			axi_w_data_o = 'bx;
+			axi_w_valid_o= 0;
+			axi_w_last_o= 0;
+			axi_w_strb_o= 0;
 		end
 	end
 end
 
+
 // HRESP
-always_ff @(posedge HCLK or negedge HRESETn) begin
+always_comb begin
 	if(~HRESETn) begin
-		HRESP <= 0;
+		HRESP = 0;
 	end else begin
-		HRESP <= 0; //always okay
+		HRESP = 0; //always okay
 	end
 end
+
 
 
 
@@ -313,8 +338,8 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		// $fwrite(ahb2axi_file,"\t\tWADDR=%h \tAWVALID=%b \tAWLEN=%0d \tAWSIZE=%b \tWDATA=%h \tWVALID=%b \tAWBURST=%b  \n\n",axi_aw_addr_o,axi_aw_valid_o, axi_aw_len_o,axi_aw_size_o,axi_w_data_o,axi_w_valid_o,axi_aw_burst_o);
 
 		$fwrite(ahb2axi_file,"cycle_counter=%0d\n",cycle_counter);
-		$fwrite(ahb2axi_file,"\tHRESETn=%b\n \tHBURST=%s\n \tHSIZE=%s\n \tHTRANS=%s\n \tHADDR=%h\n \tHREADY=%b\n \tHWRITE=%b\n \tHWDATA=%h\n \tHRESP=%h\n \taxi_aw_burst_o=%0d\n \taxi_aw_size_o=%0d\n \taxi_aw_len_o=%0d\n \taxi_aw_addr_o=%h\n \taxi_aw_valid_o=%b\n \taxi_aw_ready_i=%b\n \taxi_aw_ack=%b\n \taxi_w_data_o=%h\n \taxi_w_valid_o=%b\n \taxi_w_ready_i=%b\n \taxi_w_strb_o=%b\n \taxi_w_last_o=%b\n \taxi_b_ready_o=%b\n \taxi_b_valid_i=%b\n \taxi_b_resp_i=%b\n \tpending_write=%b\n",
-					    HRESETn,burst_to_string(HBURST),size_to_string(HSIZE),trans_to_string(HTRANS),HADDR,HREADY,HWRITE,HWDATA,HRESP,axi_aw_burst_o,axi_aw_size_o,axi_aw_len_o,axi_aw_addr_o,axi_aw_valid_o,axi_aw_ready_i,axi_aw_ack,axi_w_data_o,axi_w_valid_o,axi_w_ready_i,axi_w_strb_o,axi_w_last_o,axi_b_ready_o,axi_b_valid_i,axi_b_resp_i,pending_write);
+		$fwrite(ahb2axi_file,"\tHRESETn=%b\n \tHBURST=%s\n \tHSIZE=%s\n \tHTRANS=%s\n \tHADDR=%h\n \tHREADY=%b\n \tHWRITE=%b\n \tHWDATA=%h\n \tHRESP=%h\n \tAW CHANNEL\n \taxi_aw_burst_o=%s\n \taxi_aw_size_o=%s\n \taxi_aw_len_o=%0d\n \taxi_aw_addr_o=%h\n \taxi_aw_valid_o=%b\n \taxi_aw_ready_i=%b\n \taxi_aw_ack=%b\n \tW CHANNEL\n \taxi_w_data_o=%h\n \taxi_w_valid_o=%b\n \taxi_w_ready_i=%b\n \taxi_w_strb_o=%b\n \taxi_w_last_o=%b\n \taxi_b_ready_o=%b\n \taxi_b_valid_i=%b\n \taxi_b_resp_i=%b\n \tpending_write=%b\n",
+					    HRESETn,burst_to_string(HBURST),size_to_string(HSIZE),trans_to_string(HTRANS),HADDR,HREADY,HWRITE,HWDATA,HRESP,axi_burst_to_string(axi_aw_burst_o),axi_size_to_string(axi_aw_size_o),axi_aw_len_o,axi_aw_addr_o,axi_aw_valid_o,axi_aw_ready_i,axi_aw_ack,axi_w_data_o,axi_w_valid_o,axi_w_ready_i,axi_w_strb_o,axi_w_last_o,axi_b_ready_o,axi_b_valid_i,axi_b_resp_i,pending_write);
 		$fwrite(ahb2axi_file,"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 	end
 end
