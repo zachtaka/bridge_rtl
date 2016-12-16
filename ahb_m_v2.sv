@@ -62,30 +62,60 @@ mailbox wdata_mail = new();
 
 
 // ahb_transaction ahb_transaction;
-logic write_random_var;
+logic sucess,sucess2;
 logic  [AHB_ADDRESS_WIDTH-1:0] address;
 int result_file;
 int cycle_counter;
+logic [63:0] trans_random_var,gen_random_var,size_random_var,write_random_var;
+logic [AHB_ADDRESS_WIDTH-1:0] addr_random_var;
+int z;
 initial begin 
 	result_file = $fopen("C:/Users/haris/Desktop/Verilog/bridge_rtl/results_v2.txt", "w") ;
 	HCLK=0;
 	HRESETn=1'b0;
-	#(Hclock*2)
+	#(Hclock*3)
 	HRESETn=1'b1;
+	z=0;
+
+	// INCR_t(4,'h0,4,1);
+	// INCR_t(4,'h0,4,1);
+	// SINGLE_t(8,4,1);
+	// IDLE_t;
+	while ( z<1000) begin
+		gen_random_var = $urandom_range(0,99);
+		trans_random_var = $urandom_range(0,4);
+		sucess = std::randomize(size_random_var) with { size_random_var inside {1,2,4,8};};
+		sucess2 = std::randomize(addr_random_var) with { addr_random_var%size_random_var==0; addr_random_var>=0 && addr_random_var<=20;};
+		$display("addr_random_var=%h",addr_random_var);
+		// size_random_var = $urandom_range(0,3);
+		// write_random_var = $urandom_range(0,1);// mexri na ginoun ta read 
+		write_random_var = 1'b1; // mexri na ginoun ta read 
+		// INCR_t(4,addr_random_var,size_random_var,1);
+
+		// INCR_t(4,addr_random_var,size_random_var,1);
+		if (gen_random_var<GEN_RATE && sucess==1'b1 && sucess2==1'b1) begin
+			if (trans_random_var==0) begin // INCR4
+				INCR_t(4,addr_random_var,size_random_var,write_random_var);
+			end else if (trans_random_var==1) begin // INCR8
+				INCR_t(8,addr_random_var,size_random_var,write_random_var);
+			end else if (trans_random_var==2) begin // INCR16
+				INCR_t(16,addr_random_var,size_random_var,write_random_var);
+			end else if (trans_random_var==3) begin // SINGLE
+				SINGLE_t(addr_random_var,size_random_var,write_random_var);
+			end else if (trans_random_var==4) begin //INCR
+				INCR_t($urandom_range(max_undefined_length,17),addr_random_var,size_random_var,write_random_var);
+			end
+		end else begin
+			IDLE_t;
+		end
+		z++;
+	end
 
 
-	INCR_t(4,'h0,4,1);
-	INCR_t(4,'h0,4,1);
-	SINGLE_t(8,4,1);
-	IDLE_t;
-	// for (int i = 0; i <1; i++) begin
-	// 	address_mail.get(address);
-	// 	write_mail.get(write_random_var);
-	// 	size_mail.get(size);
-	// 	burst_mail.get(burst_type);
-	// 	trans_mail.get(state);
-	// 	$display("Got address=%h \twrite=%b \tsize=%s \tburst=%s \ttrans=%s from mailbox",address,write_random_var,size,burst_type,state);
-	// end
+
+
+
+
 end
 
 
@@ -124,7 +154,7 @@ end
 
 
 
-
+// #f change to comb blocks
 
 
 ///////++++++++++++++++++++++
@@ -148,10 +178,6 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 			data_phase<=1'b1;
 			wdata_mail.get(data);
 			HWDATA<=data;
-
-
-
-
 		end else begin 
 			data_phase<=0;
 			tmp0<=0;
@@ -283,7 +309,7 @@ task INCR_t(
 endtask : INCR_t
 
 
-task SINGLE_t(
+task SINGLE_t(			// %f merge with incr
 	input [AHB_ADDRESS_WIDTH-1:0] start_address,
 	input integer size_in_bytes,
 	input write_random_var
@@ -357,7 +383,7 @@ endtask : put_to_mail
 
 task pop_from_mail();
 	burst_mail.get(burst);
-	trans_mail.get(state_);
+	trans_mail.get(state_);		// #f try_get
 	address_mail.get(address);
 	size_mail.get(size_);
 	write_mail.get(write);

@@ -227,92 +227,93 @@ logic                                    axi_r_ready;   // RREADY
 ///////++++++++++++++++++++++
 ////// Dummy slave
 ///////++++++++++++++++++++++
-always_ff @(posedge HCLK or negedge HRESETn) begin
-	if(~HRESETn) begin
-		axi_aw_ready<=0;
-		axi_w_ready<=0;
-	end else begin
-		 if(axi_aw_valid==1'b1) begin
-		 	axi_aw_ready<=1'b1;
-		 end else begin 
-		 	axi_aw_ready<=0;
-		 end
+// always_ff @(posedge HCLK or negedge HRESETn) begin
+// 	if(~HRESETn) begin
+// 		axi_aw_ready<=0;
+// 		axi_w_ready<=0;
+// 	end else begin
+// 		 if(axi_aw_valid==1'b1) begin
+// 		 	axi_aw_ready<=1'b1;
+// 		 end else begin 
+// 		 	axi_aw_ready<=0;
+// 		 end
 
-		 if(axi_w_valid==1'b1) begin
-		 	axi_w_ready<=1'b1;
-		 	now<=cycle_counter;
-		 end else begin 
-		 	axi_w_ready<=0;
-		 end
-		 axi_b_resp<=0;
-		 if(cycle_counter==now+3 && cycle_counter>3) begin
-		 	axi_b_valid<=1'b1;
-		 end else begin 
-		 	axi_b_valid<=0;
-		 end
-	end
-end
+// 		 if(axi_w_valid==1'b1) begin
+// 		 	axi_w_ready<=1'b1;
+// 		 	now<=cycle_counter;
+// 		 end else begin 
+// 		 	axi_w_ready<=0;
+// 		 end
+// 		 axi_b_resp<=0;
+// 		 if(cycle_counter==now+3 && cycle_counter>3) begin
+// 		 	axi_b_valid<=1'b1;
+// 		 end else begin 
+// 		 	axi_b_valid<=0;
+// 		 end
+// 	end
+// end
 ///////++++++++++++++++++++++
 ////// END - Dummy slave
 ///////++++++++++++++++++++++
+parameter SERVE_RATE =100;
+parameter ERROR_RATE  =0;
 
-// parameter int SERVE_RATE    = 100; // Rate at which Slave generates responses
-// parameter int ERROR_RATE    = 0;  
-// 			axi_slave_tb #(
-// 			.DW(DW),
-// 			.AW(AW),
-// 			.SERVE_RATE(SERVE_RATE),
-// 			.ERROR_RATE(ERROR_RATE),
-// 			.USERW(USERW)
-// 		) inst_axi_slave_tb (
-// 			.clk             (clk),
-// 			.rst             (rst),
-// 			.axi_aw_id_i     (axi_aw_id),
-// 			.axi_aw_addr_i   (axi_aw_addr),
-// 			.axi_aw_len_i    (axi_aw_len),
-// 			.axi_aw_size_i   (axi_aw_size),
-// 			.axi_aw_burst_i  (axi_aw_burst),
-// 			.axi_aw_lock_i   (axi_aw_lock),
-// 			.axi_aw_cache_i  (axi_aw_cache),
-// 			.axi_aw_prot_i   (axi_aw_prot),
-// 			.axi_aw_qos_i    (axi_aw_qos),
-// 			.axi_aw_region_i (axi_aw_region),
-// 			.axi_aw_user_i   (axi_aw_user),
-// 			.axi_aw_valid_i  (axi_aw_valid),
-// 			.axi_aw_ready_o  (axi_aw_ready),
-// 			.axi_w_id_i      (axi_w_id),
-// 			.axi_w_data_i    (axi_w_data),
-// 			.axi_w_strb_i    (axi_w_strb),
-// 			.axi_w_last_i    (axi_w_last),
-// 			.axi_w_user_i    (axi_w_user),
-// 			.axi_w_valid_i   (axi_w_valid),
-// 			.axi_w_ready_o   (axi_w_ready),
-// 			.axi_b_id_o      (axi_b_id),
-// 			.axi_b_resp_o    (axi_b_resp),
-// 			.axi_b_user_o    (axi_b_user),
-// 			.axi_b_valid_o   (axi_b_valid),
-// 			.axi_b_ready_i   (axi_b_ready),
-// 			.axi_ar_id_i     (axi_ar_id),
-// 			.axi_ar_addr_i   (axi_ar_addr),
-// 			.axi_ar_len_i    (axi_ar_len),
-// 			.axi_ar_size_i   (axi_ar_size),
-// 			.axi_ar_burst_i  (axi_ar_burst),
-// 			.axi_ar_lock_i   (axi_ar_lock),
-// 			.axi_ar_cache_i  (axi_ar_cache),
-// 			.axi_ar_prot_i   (axi_ar_prot),
-// 			.axi_ar_qos_i    (axi_ar_qos),
-// 			.axi_ar_region_i (axi_ar_region),
-// 			.axi_ar_user_i   (axi_ar_user),
-// 			.axi_ar_valid_i  (axi_ar_valid),
-// 			.axi_ar_ready_o  (axi_ar_ready),
-// 			.axi_r_id_o      (axi_r_id),
-// 			.axi_r_data_o    (axi_r_data),
-// 			.axi_r_resp_o    (axi_r_resp),
-// 			.axi_r_last_o    (axi_r_last),
-// 			.axi_r_user_o    (axi_r_user),
-// 			.axi_r_valid_o   (axi_r_valid),
-// 			.axi_r_ready_i   (axi_r_ready)
-// 		);
+	axi_slave_tb #(
+			.DW(DW),
+			.AW(AW),
+			.TIDW(TIDW),
+			.SERVE_RATE(SERVE_RATE),
+			.ERROR_RATE(ERROR_RATE),
+			.USERW(USERW)
+		) inst_axi_slave_tb (
+			.clk             (HCLK),
+			.rst_n           (HRESETn),
+			.axi_aw_id_i     (axi_aw_id),
+			.axi_aw_addr_i   (axi_aw_addr),
+			.axi_aw_len_i    (axi_aw_len),
+			.axi_aw_size_i   (axi_aw_size),
+			.axi_aw_burst_i  (axi_aw_burst),
+			.axi_aw_lock_i   (axi_aw_lock),
+			.axi_aw_cache_i  (axi_aw_cache),
+			.axi_aw_prot_i   (axi_aw_prot),
+			.axi_aw_qos_i    (axi_aw_qos),
+			.axi_aw_region_i (axi_aw_region),
+			.axi_aw_user_i   (axi_aw_user),
+			.axi_aw_valid_i  (axi_aw_valid),
+			.axi_aw_ready_o  (axi_aw_ready),
+			.axi_w_id_i      (axi_w_id),
+			.axi_w_data_i    (axi_w_data),
+			.axi_w_strb_i    (axi_w_strb),
+			.axi_w_last_i    (axi_w_last),
+			.axi_w_user_i    (axi_w_user),
+			.axi_w_valid_i   (axi_w_valid),
+			.axi_w_ready_o   (axi_w_ready),
+			.axi_b_id_o      (axi_b_id),
+			.axi_b_resp_o    (axi_b_resp),
+			.axi_b_user_o    (axi_b_user),
+			.axi_b_valid_o   (axi_b_valid),
+			.axi_b_ready_i   (axi_b_ready),
+			.axi_ar_id_i     (axi_ar_id),
+			.axi_ar_addr_i   (axi_ar_addr),
+			.axi_ar_len_i    (axi_ar_len),
+			.axi_ar_size_i   (axi_ar_size),
+			.axi_ar_burst_i  (axi_ar_burst),
+			.axi_ar_lock_i   (axi_ar_lock),
+			.axi_ar_cache_i  (axi_ar_cache),
+			.axi_ar_prot_i   (axi_ar_prot),
+			.axi_ar_qos_i    (axi_ar_qos),
+			.axi_ar_region_i (axi_ar_region),
+			.axi_ar_user_i   (axi_ar_user),
+			.axi_ar_valid_i  (axi_ar_valid),
+			.axi_ar_ready_o  (axi_ar_ready),
+			.axi_r_id_o      (axi_r_id),
+			.axi_r_data_o    (axi_r_data),
+			.axi_r_resp_o    (axi_r_resp),
+			.axi_r_last_o    (axi_r_last),
+			.axi_r_user_o    (axi_r_user),
+			.axi_r_valid_o   (axi_r_valid),
+			.axi_r_ready_i   (axi_r_ready)
+		);
 
 
 

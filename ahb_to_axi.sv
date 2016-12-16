@@ -320,4 +320,52 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 end
 
 
+
+
+///////++++++++++++++++++++++
+////// Set other signals zero
+///////++++++++++++++++++++++
+always_comb begin 
+	// AW (Write Address) 
+	axi_aw_id_o=0;    // AWID
+	// axi_aw_lock_o=  // AWLOCK / 2-bit always for AMBA==3 compliance= but MSB is always tied to zero (no locked support) 
+	// axi_aw_cache_o= // AWCACHE
+	// axi_aw_prot_o=  // AWPROT
+	// axi_aw_qos_o=   // AWQOS
+	// axi_aw_region_o=// AWREGION
+	// axi_aw_user_o=  // AWUSER
+	// // W (Write Data) channel
+	// axi_w_id_o=     // WID / driven only under AMBA==3 mode (AXI4 does not support write interleaving= so there's no WID signal)
+	
+	// axi_w_user_o=   // WUSER / tied to zero
+	// AR (Read Address) 
+	// axi_ar_id_o=    // ARID
+	axi_ar_addr_o= 0; // ARADDR
+	axi_ar_len_o= 0;  // ARLEN
+	axi_ar_size_o= 0; // ARSIZE
+	axi_ar_burst_o= 0;// ARBURST
+	// axi_ar_lock_o=  // ARLOCK / 2-bit always for AMBA==3 compliance= but MSB is always tied to zero (no locked support)
+	// axi_ar_cache_o= // ARCACHE
+	// axi_ar_prot_o=  // ARPROT
+	// axi_ar_qos_o=   // ARQOS
+	// axi_ar_region_o=// ARREGION
+	// axi_ar_user_o=  // ARUSER
+	axi_ar_valid_o=0; // ARVALID
+	// R (Read Data) 
+	axi_r_ready_o=1;   // RREADY
+end
+
+
+
+
+
+
+
+
+///////++++++++++++++++++++++
+////// END - Set other signals zero
+///////++++++++++++++++++++++
+
+
+
 endmodule // ahb_to_axi
