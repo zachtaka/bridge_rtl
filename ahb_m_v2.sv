@@ -146,9 +146,9 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		if(HREADY==1'b1) begin
 			pop_from_mail;
 			HADDR<=address;
-			HBURST<=burst;
-			HTRANS<=state_;
-			HSIZE<=size_;
+			HBURST<=burst_type;
+			HTRANS<=state_t'(state);
+			HSIZE<=size_t'(size);
 			HWRITE<=write;
 			length<=burst_length;
 		end 
@@ -178,18 +178,11 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		tmp0<=0;
 		HWDATA<=0;
 	end else begin
-
-		// $display("@cycle_counter=%0d HREADY=%b state_=%b HWRITE=%b",cycle_counter,HREADY,state_,HWRITE);
 		if(HREADY==1'b1 && (HTRANS!==2'b00 && HTRANS!==2'b01)  && HWRITE==1'b1) begin
 			data_phase<=1'b1;
 			wdata_mail.get(data);
 			HWDATA<=data;
 		end 
-		// else begin 
-		// 	data_phase<=0;
-		// 	tmp0<=0;
-		// 	HWDATA<=0;
-		// end
 	end
 end
 
@@ -216,7 +209,6 @@ always_ff @(posedge HCLK or negedge HRESETn) begin : proc_
 		if(HTRANS==2'b10) begin
 			$fwrite(result_file,"\n");
 		end
-		// $fwrite(result_file,"@cycle_counter=%0d \tHTRANS=%b \tHBURST=%b \tHSIZE=%b \tburst_length=%0d \tHWRITE=%b \tHADDR=%h \tHWDATA=%h \tHRDATA=%h \tHREADY=%b \tHRESP=%s \tdata=%h \tdata_buffer=%h \t@local_cycle_counter=%0d \n",cycle_counter,state,HTRANS,HBURST,HSIZE,length,HWRITE,HADDR,HWDATA,HRDATA,HREADY,HRESP);
 		$fwrite(result_file,"@cycle_counter=%0d \tHTRANS=%s \tHBURST=%s \tHSIZE=%s \tburst_length=%0d \tHWRITE=%b \tHADDR=%h \tHREADY=%b \tHWDATA=%h \tHRDATA=%h\n",
 			cycle_counter,trans_to_string(HTRANS),burst_to_string(HBURST),size_to_string(HSIZE),burst_length,HWRITE,HADDR,HREADY,HWDATA,HRDATA);
 	end
@@ -251,50 +243,19 @@ task INCR_t(
 	for (int i = 0; i < number_of_beats; i++) begin
 		if(i==0) begin
 			burst_length=number_of_beats;
-			// Set burst type
-			if (number_of_beats==4) begin
-				burst_type=INCR4;
-				burst = 3'b011;
-			end else if(number_of_beats==8) begin
-				burst_type=INCR8;
-				burst = 3'b101;
-			end else if (number_of_beats==16) begin
-				burst_type=INCR16;
-				burst = 3'b111;
-			end else begin
-				burst_type=INCR;
-				burst = 3'b001;
-			end
-			// Set size
-			if (size_in_bytes==1) begin
-				size=Byte;
-				size_=3'b000;
-			end else if (size_in_bytes==2) begin
-				size=Halfword;
-				size_=3'b001;
-			end else if(size_in_bytes==4) begin
-				size=Word;
-				size_=3'b010;
-			end else if (size_in_bytes==8) begin
-				size=Doubleword;
-				size_=3'b011;
-			end
+			burst_type=get_burst_type(number_of_beats);
+			size=get_size_type(size_in_bytes);
 			write=write_random_var;
 			state=NONSEQ;
-			state_=2'b10;
 			address=start_address;
 		end else begin 
 			state=SEQ;
-			state_=2'b11;
 			address=new_address(size_in_bytes,aligned_address,i);
 		end
-
 		put_to_mail;
-
-
 		for (int k=0;k<AHB_DATA_WIDTH;k=k+8)begin
 
-			if (i==0) begin //if first transfer
+			if (i==0) begin
 				lower_byte_lane = (start_address-(start_address/data_bus_bytes)*data_bus_bytes);
 				upper_byte_lane = ( aligned_address+(number_bytes-1)-(start_address/data_bus_bytes)*data_bus_bytes);
 			end else begin
@@ -308,11 +269,10 @@ task INCR_t(
 			end
 			tmp0=tmp0+1;
 		end	
-		wdata_mail.put(data);
-
-
+		if(write_random_var==1'b1) begin
+			wdata_mail.put(data);
+		end
 	end
-
 endtask : INCR_t
 
 
@@ -323,32 +283,17 @@ task SINGLE_t(			// %f merge with incr
 	);
 	number_bytes2 = size_in_bytes;
 	aligned_address2 = (start_address/number_bytes2)*number_bytes2;
-	// Set size
-	if (size_in_bytes==1) begin
-		size=Byte;
-		size_=3'b000;
-	end else if (size_in_bytes==2) begin
-		size=Halfword;
-		size_=3'b001;
-	end else if(size_in_bytes==4) begin
-		size=Word;
-		size_=3'b010;
-	end else if (size_in_bytes==8) begin
-		size=Doubleword;
-		size_=3'b011;
-	end
-	state_=2'b10; // NONSEQ
+	size=get_size_type(size_in_bytes);
+	state = NONSEQ;
 	address = start_address;
-	burst = 3'b000; // SINGLE
+	burst_type = get_burst_type(0);
 	burst_length=1;
 	write = write_random_var;
 	put_to_mail;
-
 	for (int k=0;k<AHB_DATA_WIDTH;k=k+8)begin
-		$display("start_address=%h aligned_address2=%h number_bytes2=%0d",start_address,aligned_address2,number_bytes2);
+		// $display("start_address=%h aligned_address2=%h number_bytes2=%0d",start_address,aligned_address2,number_bytes2);
 		lower_byte_lane = (start_address-(start_address/data_bus_bytes)*data_bus_bytes);
 		upper_byte_lane = ( aligned_address2+(number_bytes2-1)-(start_address/data_bus_bytes)*data_bus_bytes);
-			
 		if ((k>=lower_byte_lane*8) && (k<=upper_byte_lane*8)) begin
 			data[k+:8]=tmp0;
 		end else begin
@@ -356,25 +301,21 @@ task SINGLE_t(			// %f merge with incr
 		end
 		tmp0=tmp0+1;
 	end	
-	$display("data=%h",data);
-	wdata_mail.put(data);
-
-
-
-
+	// $display("data=%h",data);
+	if(write_random_var==1'b1) begin
+		wdata_mail.put(data);
+	end
 endtask : SINGLE_t
 
 
 task IDLE_t;
-	
-	state_=2'b00;
+	state = IDLE;
 	address=0;
 	write=0;
 	burst = 3'b000; // SINGLE
 	size_=3'b000;
 	burst_length=0;
 	put_to_mail;
-
 
 endtask
 
@@ -383,19 +324,19 @@ endtask
 
 
 task put_to_mail();
-	burst_mail.put(burst);// burst_mail.put(burst_t'(burst_type));
-	trans_mail.put(state_);// trans_mail.put(state_t'(state));
+	burst_mail.put(burst_type);// burst_mail.put(burst_t'(burst_type));
+	trans_mail.put(state);// trans_mail.put(state_t'(state));
 	address_mail.put(address);
-	size_mail.put(size_);// size_mail.put(size_t'(size));
+	size_mail.put(size);// size_mail.put(size_t'(size));
 	write_mail.put(write);
 	undef_incr_len_mail.put(burst_length);
 endtask : put_to_mail
 
 task pop_from_mail();
-	burst_mail.get(burst);
-	trans_mail.get(state_);		// #f try_get
+	burst_mail.get(burst_type);
+	trans_mail.get(state);		// #f try_get
 	address_mail.get(address);
-	size_mail.get(size_);
+	size_mail.get(size);
 	write_mail.get(write);
 	undef_incr_len_mail.get(burst_length);
 endtask : pop_from_mail

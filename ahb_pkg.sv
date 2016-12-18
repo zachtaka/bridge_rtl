@@ -207,6 +207,33 @@ function string axi_size_to_string (
 	end
 endfunction
 
+function size_t get_size_type (
+	int size_in_bytes
+	);
+	if (size_in_bytes==1) begin
+		get_size_type=Byte;
+	end else if (size_in_bytes==2) begin
+		get_size_type=Halfword;
+	end else if(size_in_bytes==4) begin
+		get_size_type=Word;
+	end else if (size_in_bytes==8) begin
+		get_size_type=Doubleword;
+	end
+endfunction
+
+function burst_t get_burst_type (
+	int number_of_beats
+	);
+	if (number_of_beats==4) begin
+		get_burst_type=INCR4;
+	end else if(number_of_beats==8) begin
+		get_burst_type=INCR8;
+	end else if (number_of_beats==16) begin
+		get_burst_type=INCR16;
+	end else begin
+		get_burst_type=INCR;
+	end
+endfunction
 
 
 endpackage : ahb_pkg
