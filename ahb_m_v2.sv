@@ -26,7 +26,8 @@ module ahb_m_v2
 integer data_bus_bytes;
 assign data_bus_bytes = AHB_DATA_WIDTH/8;
 int local_cycle_counter;
-logic [63:0] number_bytes,number_bytes2,upper_byte_lane,lower_byte_lane;
+logic [63:0] number_bytes,upper_byte_lane,lower_byte_lane;
+int number_bytes2;
 logic [AHB_DATA_WIDTH-1:0]data,data_buffer;
 logic  [AHB_ADDRESS_WIDTH-1:0] aligned_address,aligned_address2,next_address;
 // state encoding
@@ -77,10 +78,13 @@ initial begin
 	HRESETn=1'b1;
 	z=0;
 
-	// INCR_t(4,'h0,4,1);
-	// INCR_t(4,'h4,8,1);
-	// SINGLE_t(4,1,1);
+	
 	IDLE_t;
+	// INCR_t(4,'h0,4,1);
+	// INCR_t(4,'h0,4,0);
+	// INCR_t(4,'h4,8,1);
+	// SINGLE_t(0,8,1);
+	// SINGLE_t(4,1,0);
 	while ( z<1000) begin
 		gen_random_var = $urandom_range(0,99);
 		trans_random_var = $urandom_range(0,4);
@@ -88,8 +92,8 @@ initial begin
 		sucess2 = std::randomize(addr_random_var) with { addr_random_var%size_random_var==0; addr_random_var>=0 && addr_random_var<=20;};
 		$display("addr_random_var=%h",addr_random_var);
 		// size_random_var = $urandom_range(0,3);
-		// write_random_var = $urandom_range(0,1);// mexri na ginoun ta read 
-		write_random_var = 1'b1; // mexri na ginoun ta read 
+		write_random_var = $urandom_range(0,1);// mexri na ginoun ta read 
+		// write_random_var = 1'b0; // mexri na ginoun ta read 
 		// INCR_t(4,addr_random_var,size_random_var,1);
 
 		// INCR_t(4,addr_random_var,size_random_var,1);
@@ -213,8 +217,8 @@ always_ff @(posedge HCLK or negedge HRESETn) begin : proc_
 			$fwrite(result_file,"\n");
 		end
 		// $fwrite(result_file,"@cycle_counter=%0d \tHTRANS=%b \tHBURST=%b \tHSIZE=%b \tburst_length=%0d \tHWRITE=%b \tHADDR=%h \tHWDATA=%h \tHRDATA=%h \tHREADY=%b \tHRESP=%s \tdata=%h \tdata_buffer=%h \t@local_cycle_counter=%0d \n",cycle_counter,state,HTRANS,HBURST,HSIZE,length,HWRITE,HADDR,HWDATA,HRDATA,HREADY,HRESP);
-		$fwrite(result_file,"@cycle_counter=%0d \tHTRANS=%s \tHBURST=%s \tHSIZE=%s \tburst_length=%0d \tHWRITE=%b \tHADDR=%h \tHREADY=%b \tHWDATA=%h \tdata_phase=%b\n",
-			cycle_counter,trans_to_string(HTRANS),burst_to_string(HBURST),size_to_string(HSIZE),burst_length,HWRITE,HADDR,HREADY,HWDATA,data_phase);
+		$fwrite(result_file,"@cycle_counter=%0d \tHTRANS=%s \tHBURST=%s \tHSIZE=%s \tburst_length=%0d \tHWRITE=%b \tHADDR=%h \tHREADY=%b \tHWDATA=%h \tHRDATA=%h\n",
+			cycle_counter,trans_to_string(HTRANS),burst_to_string(HBURST),size_to_string(HSIZE),burst_length,HWRITE,HADDR,HREADY,HWDATA,HRDATA);
 	end
 end
 
@@ -317,8 +321,8 @@ task SINGLE_t(			// %f merge with incr
 	input integer size_in_bytes,
 	input write_random_var
 	);
-	assign number_bytes2 = size_in_bytes;
-	assign aligned_address2 = (start_address/number_bytes2)*number_bytes2;
+	number_bytes2 = size_in_bytes;
+	aligned_address2 = (start_address/number_bytes2)*number_bytes2;
 	// Set size
 	if (size_in_bytes==1) begin
 		size=Byte;
@@ -341,7 +345,7 @@ task SINGLE_t(			// %f merge with incr
 	put_to_mail;
 
 	for (int k=0;k<AHB_DATA_WIDTH;k=k+8)begin
-
+		$display("start_address=%h aligned_address2=%h number_bytes2=%0d",start_address,aligned_address2,number_bytes2);
 		lower_byte_lane = (start_address-(start_address/data_bus_bytes)*data_bus_bytes);
 		upper_byte_lane = ( aligned_address2+(number_bytes2-1)-(start_address/data_bus_bytes)*data_bus_bytes);
 			
@@ -352,7 +356,7 @@ task SINGLE_t(			// %f merge with incr
 		end
 		tmp0=tmp0+1;
 	end	
-
+	$display("data=%h",data);
 	wdata_mail.put(data);
 
 

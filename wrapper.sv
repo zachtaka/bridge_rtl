@@ -97,6 +97,21 @@ end
 
 
 
+	// ahb_s inst_ahb_s
+	// 	(
+	// 		.HCLK    (HCLK),
+	// 		.HADDR   (HADDR),
+	// 		.HWDATA  (HWDATA),
+	// 		.HWRITE  (HWRITE),
+	// 		.HSIZE   (HSIZE),
+	// 		.HBURST  (HBURST),
+	// 		.HTRANS  (HTRANS),
+	// 		.HRESETn (HRESETn),
+	// 		.HREADY  (HREADY),
+	// 		.HRDATA  (HRDATA),
+	// 		.HRESP   (HRESP),
+	// 		.HEXOKAY (HEXOKAY)
+	// 	);
 
 
 

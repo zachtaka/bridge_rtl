@@ -117,6 +117,7 @@ assign response = response_t'(HRESP);
 ////// Write Transfers (SINGLE)
 ///////++++++++++++++++++++++
 logic axi_aw_ack,axi_w_ack;
+logic axi_write_ack;
 always_ff @(posedge HCLK or negedge HRESETn) begin 
 	if(~HRESETn) begin
 		axi_aw_ack <= 0;
@@ -127,20 +128,6 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 	end
 end
 
-// HREADY
-logic axi_write_ack;
-always_ff @(posedge HCLK or negedge HRESETn) begin 
-	if(~HRESETn) begin
-		 HREADY<=1'b1;
-	end else begin
-		if( (state == NONSEQ || state==SEQ) && HREADY==1'b1) begin
-			HREADY<=0;
-		end 
-		if(axi_write_ack==1'b1) begin
-			HREADY<=1'b1;
-		end 
-	end
-end
 
 // pending_write
 logic pending_write;
@@ -323,6 +310,181 @@ end
 ///////++++++++++++++++++++++
 ////// END - Write Transfers
 ///////++++++++++++++++++++++
+
+
+
+///////++++++++++++++++++++++
+////// Read Transfers 
+///////++++++++++++++++++++++
+
+// pending_read
+logic pending_read,axi_r_ack;
+logic axi_ar_ack;
+always_ff @(posedge HCLK or negedge HRESETn) begin 
+	if(~HRESETn) begin
+		 pending_read<=0;
+	end else begin
+		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==0) begin
+			pending_read<=1'b1;
+		end 
+		if(axi_r_ack==1'b1) begin
+			pending_read<=0;
+		end
+		if(axi_ar_valid_o==1'b1 && axi_ar_ready_i==1'b1) begin
+			axi_ar_ack<=1'b1;
+		end else begin 
+			axi_ar_ack<=0;
+		end
+
+	end
+end
+
+
+
+assign axi_r_ready_i = 1'b1;
+
+// assign axi_ar_ack = axi_ar_valid_o & axi_ar_ready_i;
+
+// ARBURST - HBURST
+always_comb begin
+	if(~HRESETn) begin
+		axi_ar_burst_o = 0;
+	end else begin
+		if( HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==0 ) begin //geniki sinthiki pou kanw sample ta AW simata
+			if(burst_type==SINGLE ) begin
+				axi_ar_burst_o=2'b01; // axi_burst=INCR
+			end if(burst_type==INCR || burst_type==INCR4 ||burst_type==INCR8 || burst_type==INCR16 ) begin
+				axi_ar_burst_o=2'b01; // axi_burst=INCR
+			end else begin 
+				axi_ar_burst_o=2'b01; // otan einai single den mpenei mesa gia auto to evala edw 1
+			end
+		end
+	end
+end
+
+ // ARSIZE - HSIZE
+ always_comb begin 
+ 	if(~HRESETn) begin
+		axi_ar_size_o=0;
+	end else begin
+		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==0) begin
+			if(burst_type==SINGLE ) begin
+				axi_ar_size_o=HSIZE;
+			end else begin // if(burst_type==INCR)
+				axi_ar_size_o=HSIZE;
+			end
+		end
+	end
+ end
+
+// ARLEN - HBURST
+always_comb begin 
+	if(~HRESETn) begin
+		axi_ar_len_o=0;
+	end else begin
+		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==1'b1) begin
+			if(burst_type==SINGLE) begin
+				axi_ar_len_o=0;
+			end else begin // if(burst_type==INCR)
+				axi_ar_len_o=0;
+			end 
+		end
+	end
+end
+
+// read address buffer
+logic [AHB_ADDRESS_WIDTH-1:0] r_address_buffer;
+always_ff @(posedge HCLK or negedge HRESETn) begin
+	if(~HRESETn) begin
+		r_address_buffer <= 0;
+	end else begin
+		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==0) begin
+			r_address_buffer <= HADDR;
+		end 
+	end
+end
+
+// ARADDR / ARVALID - HADDR (katevazw to valid sto AWREADY)
+always_comb begin 
+	if(~HRESETn) begin
+		axi_ar_addr_o=0;
+		axi_ar_valid_o= 0;
+	end else begin
+		if(HREADY==1'b1 && (state!==IDLE && state!==BUSY)  && HWRITE==0) begin
+			if(burst_type==SINGLE) begin
+				axi_ar_addr_o=HADDR;
+				axi_ar_valid_o= 1'b1;
+			end else begin // if(burst_type==INCR)
+				axi_ar_addr_o=HADDR;
+				axi_ar_valid_o= 1'b1;
+			end
+		end else begin 
+			axi_ar_addr_o=r_address_buffer;
+		end
+		if(axi_ar_ack==1'b1) begin
+			axi_ar_valid_o= 0;
+		end
+	end
+end
+
+
+// assign axi_ar_len_o=0;
+// assign axi_ar_size_o=2;
+
+
+
+
+// // RDATA
+assign axi_r_ready_o=1;
+always_comb begin
+	if(~HRESETn) begin
+		axi_r_ack= 0;
+		HRDATA=0;
+	end else begin
+		if(axi_r_valid_i==1'b1 && axi_r_ready_o==1'b1) begin
+			HRDATA = axi_r_data_i;
+			axi_r_ack=1'b1;
+		end else begin 
+			axi_r_ack=0;
+		end
+	end
+end
+
+///////++++++++++++++++++++++
+////// END - Read Transfers
+///////++++++++++++++++++++++
+
+
+// HREADY
+always_ff @(posedge HCLK or negedge HRESETn) begin 
+	if(~HRESETn) begin
+		 HREADY<=1'b1;
+	end else begin
+		if( (state == NONSEQ || state==SEQ) && HREADY==1'b1) begin
+			HREADY<=0;
+		end 
+		if(axi_write_ack==1'b1 || axi_r_ack==1'b1) begin
+			HREADY<=1'b1;
+		end 
+	end
+end
+// always_comb begin 
+// 	if(~HRESETn) begin
+// 		 HREADY=1'b1;
+// 	end else begin
+// 		if( (state == NONSEQ || state==SEQ) && HREADY==1'b1) begin
+// 			HREADY=0;
+// 		end 
+// 		if(axi_write_ack==1'b1 || axi_r_ack==1'b1) begin
+// 			HREADY=1'b1;
+// 		end 
+// 	end
+// end
+
+
+
+
+
 integer cycle_counter;
 integer ahb2axi_file;
 initial begin 
@@ -337,9 +499,17 @@ always_ff @(posedge HCLK or negedge HRESETn) begin
 		// $fwrite(ahb2axi_file,"cycle_counter=%0d \tHADDR=%h \tHWDATA=%h \tHWRITE=%b \tHSIZE=%s \tHBURST=%s \tHTRANS=%s \n",cycle_counter,HADDR,HWDATA,HWRITE,size,burst_type,state);
 		// $fwrite(ahb2axi_file,"\t\tWADDR=%h \tAWVALID=%b \tAWLEN=%0d \tAWSIZE=%b \tWDATA=%h \tWVALID=%b \tAWBURST=%b  \n\n",axi_aw_addr_o,axi_aw_valid_o, axi_aw_len_o,axi_aw_size_o,axi_w_data_o,axi_w_valid_o,axi_aw_burst_o);
 
-		$fwrite(ahb2axi_file,"cycle_counter=%0d\n",cycle_counter);
-		$fwrite(ahb2axi_file,"\tHRESETn=%b\n \tHBURST=%s\n \tHSIZE=%s\n \tHTRANS=%s\n \tHADDR=%h\n \tHREADY=%b\n \tHWRITE=%b\n \tHWDATA=%h\n \tHRESP=%h\n \tAW CHANNEL\n \taxi_aw_burst_o=%s\n \taxi_aw_size_o=%s\n \taxi_aw_len_o=%0d\n \taxi_aw_addr_o=%h\n \taxi_aw_valid_o=%b\n \taxi_aw_ready_i=%b\n \taxi_aw_ack=%b\n \tW CHANNEL\n \taxi_w_data_o=%h\n \taxi_w_valid_o=%b\n \taxi_w_ready_i=%b\n \taxi_w_strb_o=%b\n \taxi_w_last_o=%b\n \taxi_b_ready_o=%b\n \taxi_b_valid_i=%b\n \taxi_b_resp_i=%b\n \tpending_write=%b\n",
+		if(HWRITE==1'b1) begin
+			$fwrite(ahb2axi_file,"cycle_counter=%0d\n",cycle_counter);
+			$fwrite(ahb2axi_file,"\tHRESETn=%b\n \tHBURST=%s\n \tHSIZE=%s\n \tHTRANS=%s\n \tHADDR=%h\n \tHREADY=%b\n \tHWRITE=%b\n \tHWDATA=%h\n \tHRESP=%h\n \tAW CHANNEL\n \taxi_aw_burst_o=%s\n \taxi_aw_size_o=%s\n \taxi_aw_len_o=%0d\n \taxi_aw_addr_o=%h\n \taxi_aw_valid_o=%b\n \taxi_aw_ready_i=%b\n \taxi_aw_ack=%b\n \tW CHANNEL\n \taxi_w_data_o=%h\n \taxi_w_valid_o=%b\n \taxi_w_ready_i=%b\n \taxi_w_strb_o=%b\n \taxi_w_last_o=%b\n \taxi_b_ready_o=%b\n \taxi_b_valid_i=%b\n \taxi_b_resp_i=%b\n \tpending_write=%b\n",
 					    HRESETn,burst_to_string(HBURST),size_to_string(HSIZE),trans_to_string(HTRANS),HADDR,HREADY,HWRITE,HWDATA,HRESP,axi_burst_to_string(axi_aw_burst_o),axi_size_to_string(axi_aw_size_o),axi_aw_len_o,axi_aw_addr_o,axi_aw_valid_o,axi_aw_ready_i,axi_aw_ack,axi_w_data_o,axi_w_valid_o,axi_w_ready_i,axi_w_strb_o,axi_w_last_o,axi_b_ready_o,axi_b_valid_i,axi_b_resp_i,pending_write);
+		
+		end else begin 
+			$fwrite(ahb2axi_file,"cycle_counter=%0d\n",cycle_counter);
+			$fwrite(ahb2axi_file,"\tHRESETn=%b\n \tHBURST=%s\n \tHSIZE=%s\n \tHTRANS=%s\n \tHADDR=%h\n \tHREADY=%b\n \tHWRITE=%b\n \tHRDATA=%h\n \tHRESP=%h\n \tAR CHANNEL\n \taxi_ar_burst_o=%s\n \taxi_ar_size_o=%s\n \taxi_ar_len_o=%0d\n \taxi_ar_addr_o=%h\n \taxi_ar_valid_o=%b\n \taxi_ar_ready_i=%b\n \taxi_ar_ack=%b\n \tR CHANNEL\n \taxi_r_data_i=%h\n \taxi_r_valid_i=%b\n \taxi_r_ready_o=%b\n \taxi_r_last_i=%b\n \taxi_r_resp_i=%b\n",
+					    HRESETn,burst_to_string(HBURST),size_to_string(HSIZE),trans_to_string(HTRANS),HADDR,HREADY,HWRITE,HRDATA,HRESP,axi_burst_to_string(axi_ar_burst_o),axi_size_to_string(axi_ar_size_o),axi_ar_len_o,axi_ar_addr_o,axi_ar_valid_o,axi_ar_ready_i,axi_ar_ack,											axi_r_data_i,axi_r_valid_i,axi_r_ready_o,axi_r_last_i,axi_r_resp_i);
+		
+		end
 		$fwrite(ahb2axi_file,"~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 	end
 end
@@ -364,27 +534,21 @@ always_comb begin
 	
 	// axi_w_user_o=   // WUSER / tied to zero
 	// AR (Read Address) 
-	// axi_ar_id_o=    // ARID
-	axi_ar_addr_o= 0; // ARADDR
-	axi_ar_len_o= 0;  // ARLEN
-	axi_ar_size_o= 0; // ARSIZE
-	axi_ar_burst_o= 0;// ARBURST
+	axi_ar_id_o=0;    // ARID
+	// axi_ar_addr_o= 0; // ARADDR
+	// axi_ar_len_o= 0;  // ARLEN
+	// axi_ar_size_o= 0; // ARSIZE
+	// axi_ar_burst_o= 0;// ARBURST
 	// axi_ar_lock_o=  // ARLOCK / 2-bit always for AMBA==3 compliance= but MSB is always tied to zero (no locked support)
 	// axi_ar_cache_o= // ARCACHE
 	// axi_ar_prot_o=  // ARPROT
 	// axi_ar_qos_o=   // ARQOS
 	// axi_ar_region_o=// ARREGION
 	// axi_ar_user_o=  // ARUSER
-	axi_ar_valid_o=0; // ARVALID
+	// axi_ar_valid_o=0; // ARVALID
 	// R (Read Data) 
-	axi_r_ready_o=1;   // RREADY
+	// axi_r_ready_o=1;   // RREADY
 end
-
-
-
-
-
-
 
 
 ///////++++++++++++++++++++++
